@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import type { BunShell } from '../src/utils/bd.js'
 import {
   isBdInstalled,
-  isBeadsProject,
   getBdPrimeContext,
   getReadyWork,
   getInProgressWork,
@@ -29,7 +29,7 @@ function createMockResult(exitCode: number, stdout: string, stderr: string) {
  * Mock shell executor factory that simulates the BunShell API
  * The chain is: $`cmd`.quiet().nothrow() -> Promise<BunShellOutput>
  */
-function createMock$(responses: Record<string, { exitCode: number; stdout?: string; stderr?: string }>) {
+function createMock$(responses: Record<string, { exitCode: number; stdout?: string; stderr?: string }>): BunShell {
   return ((strings: TemplateStringsArray) => {
     const cmd = strings[0]
     
@@ -56,7 +56,7 @@ function createMock$(responses: Record<string, { exitCode: number; stdout?: stri
     }
     
     return createChainable()
-  }) as any
+  }) as unknown as BunShell
 }
 
 describe('bd utilities', () => {

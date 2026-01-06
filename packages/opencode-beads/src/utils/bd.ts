@@ -2,6 +2,8 @@
  * Utilities for interacting with the bd (beads) CLI
  */
 
+import { existsSync } from 'fs'
+import { join } from 'path'
 import type { PluginInput } from '@opencode-ai/plugin'
 
 // Extract the shell type from PluginInput
@@ -23,11 +25,8 @@ export async function isBdInstalled($: BunShell): Promise<boolean> {
  * Check if the current directory is a beads project (has .beads directory)
  */
 export function isBeadsProject(directory: string): boolean {
-  // Use dynamic import to avoid bundling issues
   try {
-    const fs = require('fs')
-    const path = require('path')
-    return fs.existsSync(path.join(directory, '.beads'))
+    return existsSync(join(directory, '.beads'))
   } catch {
     return false
   }

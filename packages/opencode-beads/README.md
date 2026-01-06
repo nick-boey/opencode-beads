@@ -174,19 +174,205 @@ Work is NOT complete until `git push` succeeds.
 
 ## Development
 
+### Prerequisites
+
+- **Node.js**: 20.x or 22.x (LTS recommended)
+- **npm**: 10.x or later
+- **Git**: For version control
+- **bd CLI** (optional): For testing with actual beads projects
+
+### Repository Setup
+
 ```bash
+# Clone the repository
+git clone https://github.com/nick-boey/opencode-beads.git
+cd opencode-beads
+
+# Navigate to the package
+cd packages/opencode-beads
+
 # Install dependencies
 npm install
 
-# Build
+# Build the project
 npm run build
 
-# Test
+# Run tests
+npm test
+```
+
+### Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run build` | Compile TypeScript to JavaScript |
+| `npm test` | Run tests once |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run typecheck` | Type-check without emitting |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Run ESLint with auto-fix |
+| `npm run format` | Format code with Prettier |
+| `npm run local:install` | Install plugin locally for testing |
+
+### Project Structure
+
+```
+packages/opencode-beads/
+├── src/                    # TypeScript source code
+│   ├── index.ts           # Main plugin entry point
+│   ├── config.ts          # Configuration schema (Zod)
+│   ├── version.ts         # Version info (reads from package.json)
+│   └── utils/
+│       ├── bd.ts          # bd CLI wrapper utilities
+│       └── skill-installer.ts  # Auto-install skill
+├── tool/                   # Custom tools (bd-ready.ts, bd-show.ts, etc.)
+├── command/                # Custom slash commands (markdown files)
+├── skill/beads/           # Beads skill with resources
+│   ├── SKILL.md           # Main skill file
+│   └── resources/         # Detailed documentation files
+├── test/                   # Vitest test files
+├── dist/                   # Compiled output (generated)
+└── local/                  # Local installation script
+```
+
+### Testing Locally with OpenCode
+
+#### Method 1: Local Plugin Installation
+
+```bash
+# From packages/opencode-beads directory
+npm run build
+npm run local:install
+
+# Or install globally
+npm run local:install -- --global
+```
+
+This copies the built plugin to `.opencode/plugin/beads.js` in your project.
+
+#### Method 2: npm Link
+
+```bash
+# From packages/opencode-beads directory
+npm link
+
+# In your test project
+npm link opencode-beads
+```
+
+Then add to your project's `opencode.json`:
+```json
+{
+  "plugin": ["opencode-beads"]
+}
+```
+
+#### Method 3: Direct Path Reference
+
+In your test project's `opencode.json`:
+```json
+{
+  "plugin": ["../path/to/opencode-beads/packages/opencode-beads"]
+}
+```
+
+### Writing Tests
+
+Tests use [Vitest](https://vitest.dev/). Test files are in the `test/` directory.
+
+```bash
+# Run all tests
 npm test
 
-# Lint
-npm run lint
+# Run tests in watch mode
+npm run test:watch
+
+# Run specific test file
+npx vitest run test/config.test.ts
 ```
+
+#### Mocking the Shell
+
+The plugin uses OpenCode's `BunShell` for executing bd commands. Tests mock this:
+
+```typescript
+import { describe, it, expect } from 'vitest'
+
+function createMock$(responses: Record<string, { exitCode: number; stdout?: string }>) {
+  // See test/utils.test.ts for full implementation
+}
+
+it('should handle bd commands', async () => {
+  const $ = createMock$({
+    'bd ready': { exitCode: 0, stdout: '[{"id": "1"}]' }
+  })
+  // Test your function with mocked shell
+})
+```
+
+### Code Style
+
+- **ESLint**: Enforces code quality rules
+- **Prettier**: Formats code consistently
+- **TypeScript**: Strict mode enabled
+
+```bash
+# Check for issues
+npm run lint
+npm run typecheck
+
+# Auto-fix issues
+npm run lint:fix
+npm run format
+```
+
+### Contributing
+
+1. **Fork** the repository
+2. **Create a branch** for your feature: `git checkout -b feature/my-feature`
+3. **Make changes** and add tests
+4. **Run checks**: `npm run typecheck && npm run lint && npm test`
+5. **Commit** with a descriptive message following [Conventional Commits](https://www.conventionalcommits.org/):
+   - `feat:` for new features
+   - `fix:` for bug fixes
+   - `docs:` for documentation changes
+   - `chore:` for maintenance tasks
+6. **Push** to your fork and create a **Pull Request**
+
+### Release Process
+
+Releases are automated via GitHub Actions:
+
+1. **Create a GitHub Release** with a tag like `v1.0.0`
+2. The release workflow automatically:
+   - Extracts the version from the tag
+   - Updates `package.json` version
+   - Builds and tests the package
+   - Publishes to npm with provenance
+   - Commits the version bump back to `main`
+
+**To release a new version:**
+
+```bash
+# Ensure main is up to date
+git checkout main
+git pull
+
+# Create and push a tag (or use GitHub UI)
+git tag v1.0.0
+git push origin v1.0.0
+
+# Then create a GitHub Release from the tag
+# Go to: https://github.com/nick-boey/opencode-beads/releases/new
+```
+
+Or use the GitHub UI:
+1. Go to Releases → "Draft a new release"
+2. Create a new tag (e.g., `v1.0.0`)
+3. Generate release notes
+4. Publish release
+
+The npm package will be published automatically.
 
 ## License
 
