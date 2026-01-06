@@ -11,7 +11,7 @@
  *   npm run local:install -- --global
  */
 
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'fs'
+import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
@@ -101,11 +101,28 @@ function copyFile(src, dest) {
   return true
 }
 
+/**
+ * Write a file with content
+ */
+function writeFile(dest, content, description) {
+  console.log(`  ${description}`)
+  console.log(`    To: ${dest}`)
+  
+  if (!isDryRun) {
+    mkdirSync(dirname(dest), { recursive: true })
+    writeFileSync(dest, content)
+  }
+  
+  console.log(`    ${isDryRun ? 'Would create' : 'Created'} 1 file`)
+  console.log('')
+  return 1
+}
+
 // Installation targets
 const targets = [
   {
     src: join(packageRoot, 'dist'),
-    dest: join(targetBase, 'plugin', 'opencode-beads', 'dist'),
+    dest: join(targetBase, 'plugin', 'opencode-beads'),
     isDir: true,
     description: 'Plugin (compiled JS files)',
   },
@@ -173,6 +190,38 @@ for (const target of targets) {
   console.log('')
 }
 
+// Create the wrapper plugin file that OpenCode will auto-load
+const wrapperContent = `/**
+ * opencode-beads plugin wrapper
+ * This file re-exports the plugin from the opencode-beads subdirectory.
+ * OpenCode auto-loads all .js files in .opencode/plugin/
+ */
+export { BeadsPlugin, BeadsPlugin as default } from './opencode-beads/index.js'
+`
+
+totalFiles += writeFile(
+  join(targetBase, 'plugin', 'beads.js'),
+  wrapperContent,
+  'Plugin wrapper (auto-loaded by OpenCode)'
+)
+
+// Create .opencode/package.json for external dependencies
+const packageJsonContent = JSON.stringify({
+  "name": "opencode-local-plugins",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.1.3",
+    "zod": "^3.24.2"
+  }
+}, null, 2) + '\n'
+
+totalFiles += writeFile(
+  join(targetBase, 'package.json'),
+  packageJsonContent,
+  'Dependencies package.json (for external packages)'
+)
+
 // Summary
 console.log('==============================')
 if (isDryRun) {
@@ -188,11 +237,8 @@ if (errors > 0) {
 console.log('')
 console.log('Next steps:')
 console.log('')
-console.log('  1. Add the plugin to your opencode.json:')
-console.log('')
-console.log('     {')
-console.log('       "plugin": [".opencode/plugin/opencode-beads/dist/index.js"]')
-console.log('     }')
+console.log('  1. OpenCode will auto-load the plugin from .opencode/plugin/beads.js')
+console.log('     No configuration needed in opencode.json!')
 console.log('')
 console.log('  2. Make sure bd (beads) CLI is installed:')
 console.log('     npm install -g @beads/bd')
@@ -202,5 +248,6 @@ if (!isGlobal) {
   console.log('     bd init')
   console.log('')
 }
-console.log('  The plugin will inject beads workflow context into your sessions.')
+console.log('  4. Restart OpenCode to load the plugin.')
+console.log('     The plugin will inject beads workflow context into your sessions.')
 console.log('')
