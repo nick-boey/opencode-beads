@@ -46,7 +46,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
-    "local:install": "node --loader ts-node/esm local/install.ts"
+    "local:install": "node local/install.js"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.1.3",

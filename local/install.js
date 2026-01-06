@@ -11,7 +11,7 @@
  *   npm run local:install -- --global
  */
 
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
@@ -58,7 +58,7 @@ console.log('')
 /**
  * Recursively copy a directory
  */
-function copyDirRecursive(src: string, dest: string): number {
+function copyDirRecursive(src, dest) {
   let count = 0
   
   if (!isDryRun) {
@@ -87,7 +87,7 @@ function copyDirRecursive(src: string, dest: string): number {
 /**
  * Copy a single file
  */
-function copyFile(src: string, dest: string): boolean {
+function copyFile(src, dest) {
   if (!existsSync(src)) {
     console.warn(`  Warning: ${src} not found, skipping`)
     return false
@@ -102,18 +102,17 @@ function copyFile(src: string, dest: string): boolean {
 }
 
 // Installation targets
-interface Target {
-  src: string
-  dest: string
-  isDir?: boolean
-  description: string
-}
-
-const targets: Target[] = [
+const targets = [
   {
-    src: join(packageRoot, 'dist', 'index.js'),
-    dest: join(targetBase, 'plugin', 'beads.js'),
-    description: 'Plugin entry point',
+    src: join(packageRoot, 'dist'),
+    dest: join(targetBase, 'plugin', 'opencode-beads', 'dist'),
+    isDir: true,
+    description: 'Plugin (compiled JS files)',
+  },
+  {
+    src: join(packageRoot, 'package.json'),
+    dest: join(targetBase, 'plugin', 'opencode-beads', 'package.json'),
+    description: 'Plugin package.json (for version info)',
   },
   {
     src: join(packageRoot, 'tool'),
@@ -188,12 +187,20 @@ if (errors > 0) {
 
 console.log('')
 console.log('Next steps:')
+console.log('')
+console.log('  1. Add the plugin to your opencode.json:')
+console.log('')
+console.log('     {')
+console.log('       "plugin": [".opencode/plugin/opencode-beads/dist/index.js"]')
+console.log('     }')
+console.log('')
+console.log('  2. Make sure bd (beads) CLI is installed:')
+console.log('     npm install -g @beads/bd')
+console.log('')
 if (!isGlobal) {
-  console.log('  1. The plugin is now available in your project')
-  console.log('  2. Make sure bd (beads) CLI is installed: npm install -g @beads/bd')
-  console.log('  3. Initialize beads in your project: bd init')
-} else {
-  console.log('  1. The plugin is now globally available')
-  console.log('  2. Make sure bd (beads) CLI is installed: npm install -g @beads/bd')
+  console.log('  3. Initialize beads in your project (if not already):')
+  console.log('     bd init')
+  console.log('')
 }
+console.log('  The plugin will inject beads workflow context into your sessions.')
 console.log('')

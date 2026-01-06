@@ -171,3 +171,6 @@ npm-debug.log*
 bun.lockb
 yarn.lock
 pnpm-lock.yaml
+
+# Local OpenCode plugin installation
+.opencode/
