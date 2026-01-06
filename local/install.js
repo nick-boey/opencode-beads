@@ -119,10 +119,12 @@ function writeFile(dest, content, description) {
 }
 
 // Installation targets
+// Structure mirrors the package: opencode-beads/dist/ and opencode-beads/package.json
+// This is needed because version.js uses require('../package.json')
 const targets = [
   {
     src: join(packageRoot, 'dist'),
-    dest: join(targetBase, 'plugin', 'opencode-beads'),
+    dest: join(targetBase, 'plugin', 'opencode-beads', 'dist'),
     isDir: true,
     description: 'Plugin (compiled JS files)',
   },
@@ -196,7 +198,7 @@ const wrapperContent = `/**
  * This file re-exports the plugin from the opencode-beads subdirectory.
  * OpenCode auto-loads all .js files in .opencode/plugin/
  */
-export { BeadsPlugin, BeadsPlugin as default } from './opencode-beads/index.js'
+export { BeadsPlugin, BeadsPlugin as default } from './opencode-beads/dist/index.js'
 `
 
 totalFiles += writeFile(
