@@ -10,6 +10,23 @@ import type { PluginInput } from '@opencode-ai/plugin'
 export type BunShell = PluginInput['$']
 
 /**
+ * Safely convert shell output to string
+ * Handles both string and Buffer outputs (Buffer can occur on Windows/PowerShell)
+ */
+function outputToString(output: unknown): string {
+  if (typeof output === 'string') {
+    return output
+  }
+  if (Buffer.isBuffer(output)) {
+    return output.toString('utf-8')
+  }
+  if (output && typeof output === 'object' && 'toString' in output) {
+    return String(output)
+  }
+  return ''
+}
+
+/**
  * Check if bd CLI is installed and available
  */
 export async function isBdInstalled($: BunShell): Promise<boolean> {
@@ -39,7 +56,9 @@ export async function getBdPrimeContext($: BunShell): Promise<string | null> {
   try {
     const result = await $`bd prime --full`.quiet().nothrow()
     if (result.exitCode !== 0) return null
-    return result.text()
+    // Use stdout directly and convert to string to avoid Buffer issues on Windows
+    const text = outputToString(result.stdout)
+    return text.trim() || null
   } catch {
     return null
   }
@@ -52,7 +71,8 @@ export async function getReadyWork($: BunShell, limit: number): Promise<string |
   try {
     const result = await $`bd ready --limit ${limit} --json`.quiet().nothrow()
     if (result.exitCode !== 0) return null
-    return result.text()
+    const text = outputToString(result.stdout)
+    return text.trim() || null
   } catch {
     return null
   }
@@ -65,7 +85,8 @@ export async function getInProgressWork($: BunShell): Promise<string | null> {
   try {
     const result = await $`bd list --status in_progress --json`.quiet().nothrow()
     if (result.exitCode !== 0) return null
-    return result.text()
+    const text = outputToString(result.stdout)
+    return text.trim() || null
   } catch {
     return null
   }
@@ -95,7 +116,9 @@ export async function checkHooksStatus(
       return { installed: false, outdated: false }
     }
 
-    const data = result.json()
+    // Parse JSON from stdout, handling Buffer on Windows
+    const text = outputToString(result.stdout)
+    const data = JSON.parse(text)
     const hooks = data.hooks || []
 
     const installed = hooks.some((h: { Installed: boolean }) => h.Installed)
