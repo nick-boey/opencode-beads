@@ -41,38 +41,72 @@ let pluginState: PluginState = {
 }
 
 /**
- * Helper to show toast notifications
+ * Helper to create a timeout promise
  */
-async function showToast(
-  client: PluginInput['client'],
-  variant: 'info' | 'warning' | 'error' | 'success',
-  message: string
-): Promise<void> {
+function timeout(ms: number): Promise<never> {
+  return new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), ms)
+  )
+}
+
+/**
+ * Helper to run a promise with a timeout (non-blocking, fire-and-forget style)
+ * Returns immediately if the promise takes too long
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
   try {
-    await client.tui.showToast({
-      body: { variant, message },
-    })
+    return await Promise.race([promise, timeout(ms)])
   } catch {
-    // Toast may fail if TUI is not available, ignore
+    return undefined
   }
 }
 
 /**
- * Helper to log messages
+ * Helper to show toast notifications (non-blocking with 1s timeout)
  */
-async function log(
+function showToast(
+  client: PluginInput['client'],
+  variant: 'info' | 'warning' | 'error' | 'success',
+  message: string
+): void {
+  // Fire and forget - don't await, just let it run with a timeout
+  withTimeout(
+    client.tui.showToast({
+      body: { variant, message },
+    }),
+    1000
+  ).catch(() => {
+    // Ignore errors
+  })
+}
+
+/**
+ * Helper to log messages (non-blocking with 1s timeout)
+ * Uses console.log as fallback for debugging
+ */
+function log(
   client: PluginInput['client'],
   level: 'debug' | 'info' | 'warn' | 'error',
   message: string,
   extra?: Record<string, unknown>
-): Promise<void> {
-  try {
-    await client.app.log({
-      body: { service: NAME, level, message, extra },
-    })
-  } catch {
-    // Logging may fail, ignore
+): void {
+  // Always log to console for debugging
+  const prefix = `[${NAME}]`
+  if (extra) {
+    console.log(prefix, message, extra)
+  } else {
+    console.log(prefix, message)
   }
+
+  // Fire and forget SDK log - don't await, just let it run with a timeout
+  withTimeout(
+    client.app.log({
+      body: { service: NAME, level, message, extra },
+    }),
+    1000
+  ).catch(() => {
+    // Ignore errors
+  })
 }
 
 /**
@@ -84,17 +118,17 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
   // Load configuration
   const config = loadConfig(project)
 
-  // Log initialization
-  await log(client, 'info', `Initializing ${NAME} v${VERSION}`, { directory })
+  // Log initialization (non-blocking)
+  log(client, 'info', `Initializing ${NAME} v${VERSION}`, { directory })
 
   // Check if bd CLI is installed
   const bdInstalled = await isBdInstalled($)
 
   if (!bdInstalled) {
     if (config.warnings.showNotInstalled) {
-      await showToast(client, 'warning', 'Beads (bd) CLI not installed. Run: npm install -g @beads/bd')
+      showToast(client, 'warning', 'Beads (bd) CLI not installed. Run: npm install -g @beads/bd')
     }
-    await log(client, 'warn', 'bd CLI not installed, plugin disabled')
+    log(client, 'warn', 'bd CLI not installed, plugin disabled')
     pluginState = { initialized: true, bdInstalled: false, isBeadsProject: false, primeContextInjected: false }
     return {}
   }
@@ -104,9 +138,9 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
 
   if (!beadsProject) {
     if (config.warnings.showNotInitialized) {
-      await showToast(client, 'info', 'Beads not initialized in this project. Run: bd init')
+      showToast(client, 'info', 'Beads not initialized in this project. Run: bd init')
     }
-    await log(client, 'info', 'Not a beads project (.beads/ not found), plugin disabled')
+    log(client, 'info', 'Not a beads project (.beads/ not found), plugin disabled')
     pluginState = { initialized: true, bdInstalled: true, isBeadsProject: false, primeContextInjected: false }
     return {}
   }
@@ -114,16 +148,16 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
   // Check hooks status
   const hooksStatus = await checkHooksStatus($)
   if (hooksStatus.outdated && config.warnings.showHooksOutdated) {
-    await showToast(client, 'info', 'Beads git hooks are outdated. Run: bd hooks install')
+    showToast(client, 'info', 'Beads git hooks are outdated. Run: bd hooks install')
   }
 
   // Auto-install skill if not present
   const skillInstalled = installSkillIfNeeded(directory)
   if (skillInstalled) {
-    await log(client, 'info', 'Installed beads skill to .opencode/skill/beads/')
+    log(client, 'info', 'Installed beads skill to .opencode/skill/beads/')
   }
 
-  await log(client, 'info', 'Plugin initialized successfully', {
+  log(client, 'info', 'Plugin initialized successfully', {
     hooksInstalled: hooksStatus.installed,
     skillInstalled,
   })
@@ -147,7 +181,7 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
       if (primeContext) {
         output.system.push(primeContext)
         pluginState.primeContextInjected = true
-        await log(client, 'debug', 'Injected bd prime context into system prompt')
+        log(client, 'debug', 'Injected bd prime context into system prompt')
       }
     },
 
@@ -191,7 +225,7 @@ ${parts.join('\n\n')}
 - Track strategic work in beads (multi-session, dependencies)
 - Use TodoWrite for simple single-session tasks`)
 
-        await log(client, 'debug', 'Added beads state to compaction context')
+        log(client, 'debug', 'Added beads state to compaction context')
 
         // Reset the prime context injection flag so it gets re-injected after compaction
         pluginState.primeContextInjected = false
