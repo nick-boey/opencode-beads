@@ -60,12 +60,17 @@ npx opencode-beads-install --global
 
 ### Session Hooks
 
-The plugin automatically:
+The plugin registers OpenCode hooks programmatically (unlike Claude Code which uses `~/.claude/settings.json`):
 
-- **On session start**: Injects `bd prime` output with workflow context
-- **After compaction**: Re-injects context to recover from context loss
-- **During compaction**: Adds current beads state to compaction context
-- **On idle**: Auto-syncs changes to JSONL (configurable)
+| Hook | Trigger | Action |
+|------|---------|--------|
+| `experimental.chat.system.transform` | First message in session | Injects `bd prime` output into system prompt |
+| `experimental.session.compacting` | Before context compaction | Adds beads state to compaction context |
+
+**What this means:**
+- **On session start**: Injects `bd prime` workflow context into the system prompt
+- **During compaction**: Preserves beads state (in-progress work, ready work) across compaction
+- **After compaction**: Re-injects context automatically on next message
 
 ### Custom Tools
 
