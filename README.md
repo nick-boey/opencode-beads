@@ -1,5 +1,7 @@
 # opencode-beads
 
+> **⚠️ Note**: This repository has been superseded by a more developed alternative at https://github.com/joshuadavidthomas/opencode-beads. Please use that repository instead for the latest features and improvements.
+
 Beads issue tracker integration for OpenCode - persistent task memory for AI agents.
 
 This plugin mirrors the [Beads](https://github.com/steveyegge/beads) integration for Claude Code, providing:
