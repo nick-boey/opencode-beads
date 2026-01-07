@@ -6,6 +6,9 @@
  */
 
 import type { Plugin, PluginInput, Hooks } from '@opencode-ai/plugin'
+import { appendFileSync, mkdirSync, existsSync } from 'fs'
+import { join } from 'path'
+import { homedir } from 'os'
 import { loadConfig } from './config.js'
 import {
   isBdInstalled,
@@ -44,9 +47,7 @@ let pluginState: PluginState = {
  * Helper to create a timeout promise
  */
 function timeout(ms: number): Promise<never> {
-  return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), ms)
-  )
+  return new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
 }
 
 /**
@@ -81,8 +82,31 @@ function showToast(
 }
 
 /**
+ * Get the log file path (~/.opencode-beads/log.txt)
+ */
+function getLogFilePath(): string {
+  return join(homedir(), '.opencode-beads', 'log.txt')
+}
+
+/**
+ * Ensure log directory exists and append message to log file
+ */
+function appendToLogFile(message: string): void {
+  try {
+    const logDir = join(homedir(), '.opencode-beads')
+    if (!existsSync(logDir)) {
+      mkdirSync(logDir, { recursive: true })
+    }
+    const timestamp = new Date().toISOString()
+    appendFileSync(getLogFilePath(), `${timestamp} ${message}\n`)
+  } catch {
+    // Silently ignore file logging errors
+  }
+}
+
+/**
  * Helper to log messages (non-blocking with 1s timeout)
- * Uses console.log as fallback for debugging
+ * Also logs to ~/.opencode-beads/log.txt for debugging
  */
 function log(
   client: PluginInput['client'],
@@ -90,13 +114,9 @@ function log(
   message: string,
   extra?: Record<string, unknown>
 ): void {
-  // Always log to console for debugging
-  const prefix = `[${NAME}]`
-  if (extra) {
-    console.log(prefix, message, extra)
-  } else {
-    console.log(prefix, message)
-  }
+  // Log to file for debugging
+  const extraStr = extra ? ` ${JSON.stringify(extra)}` : ''
+  appendToLogFile(`[${level.toUpperCase()}] ${message}${extraStr}`)
 
   // Fire and forget SDK log - don't await, just let it run with a timeout
   withTimeout(
@@ -119,7 +139,7 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
   const config = loadConfig(project)
 
   // Log initialization (non-blocking)
-  log(client, 'info', `Initializing ${NAME} v${VERSION}`, { directory })
+  // log(client, 'info', `Initializing ${NAME} v${VERSION}`, { directory })
 
   // Check if bd CLI is installed
   const bdInstalled = await isBdInstalled($)
@@ -129,7 +149,12 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
       showToast(client, 'warning', 'Beads (bd) CLI not installed. Run: npm install -g @beads/bd')
     }
     log(client, 'warn', 'bd CLI not installed, plugin disabled')
-    pluginState = { initialized: true, bdInstalled: false, isBeadsProject: false, primeContextInjected: false }
+    pluginState = {
+      initialized: true,
+      bdInstalled: false,
+      isBeadsProject: false,
+      primeContextInjected: false,
+    }
     return {}
   }
 
@@ -141,7 +166,12 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
       showToast(client, 'info', 'Beads not initialized in this project. Run: bd init')
     }
     log(client, 'info', 'Not a beads project (.beads/ not found), plugin disabled')
-    pluginState = { initialized: true, bdInstalled: true, isBeadsProject: false, primeContextInjected: false }
+    pluginState = {
+      initialized: true,
+      bdInstalled: true,
+      isBeadsProject: false,
+      primeContextInjected: false,
+    }
     return {}
   }
 
@@ -163,7 +193,12 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
   })
 
   // Update plugin state
-  pluginState = { initialized: true, bdInstalled: true, isBeadsProject: true, primeContextInjected: false }
+  pluginState = {
+    initialized: true,
+    bdInstalled: true,
+    isBeadsProject: true,
+    primeContextInjected: false,
+  }
 
   // Return hooks
   return {

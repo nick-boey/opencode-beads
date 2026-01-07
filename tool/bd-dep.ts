@@ -1,4 +1,5 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
@@ -23,12 +24,14 @@ export default tool({
       ),
   },
   async execute(args) {
+    const bd = findBdPath()
+
     if (args.action === 'tree') {
-      const result = await Bun.$`bd dep tree ${args.issue}`.nothrow()
+      const result = await Bun.$`${bd} dep tree ${args.issue}`.nothrow()
       if (result.exitCode !== 0) {
-        return `Error: ${result.stderr || `Failed to show dependency tree for ${args.issue}`}`
+        return `Error: ${outputToString(result.stderr) || `Failed to show dependency tree for ${args.issue}`}`
       }
-      return result.stdout
+      return outputToString(result.stdout)
     }
 
     if (!args.dependsOn) {
@@ -38,12 +41,14 @@ export default tool({
     const cmdArgs = [args.action, args.issue, args.dependsOn]
     if (args.type) cmdArgs.push(`--type=${args.type}`)
 
-    const result = await Bun.$`bd dep ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} dep ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || 'Failed to update dependency'}`
+      return `Error: ${outputToString(result.stderr) || 'Failed to update dependency'}`
     }
 
-    return result.stdout || `Dependency ${args.action === 'add' ? 'added' : 'removed'}`
+    return (
+      outputToString(result.stdout) || `Dependency ${args.action === 'add' ? 'added' : 'removed'}`
+    )
   },
 })

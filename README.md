@@ -40,13 +40,74 @@ For global installation:
 npx opencode-beads-install --global
 ```
 
+## Uninstallation
+
+### From npm (global install)
+
+If you installed via `npm install -g opencode-beads`:
+
+```bash
+npm uninstall -g opencode-beads
+```
+
+Then remove the plugin from your `opencode.json`:
+
+```diff
+{
+  "$schema": "https://opencode.ai/config.json",
+- "plugin": ["opencode-beads"]
++ "plugin": []
+}
+```
+
+Also remove the `beads` configuration section if present.
+
+### From local installation
+
+If you installed via `npx opencode-beads-install` or `npm run local:install`, these commands copy files directly to your project and are **not** reversed by `npm uninstall`.
+
+Run the uninstall script:
+
+```bash
+npx opencode-beads-uninstall
+```
+
+Or from the package directory:
+
+```bash
+npm run local:uninstall
+```
+
+For global installations, add the `--global` flag:
+
+```bash
+npx opencode-beads-uninstall --global
+```
+
+Use `--dry-run` to preview what will be removed without making changes.
+
+### Clean up beads data (optional)
+
+If you also want to remove all beads issue tracking data from your project:
+
+```bash
+# Remove beads directory (contains issue database)
+rm -rf .beads/
+
+# Remove AGENTS.md if it was created by beads
+rm AGENTS.md
+```
+
+**Warning**: Removing `.beads/` will delete all your issue tracking history for this project.
+
 ## Prerequisites
 
 1. **bd CLI** - Install the beads command-line tool:
+
    ```bash
-   # Using npm
-   npm install -g @beads/bd
-   
+   # Using Go (recommended)
+   go install github.com/steveyegge/beads/cmd/bd@latest
+
    # Using Homebrew (macOS/Linux)
    brew install steveyegge/beads/bd
    ```
@@ -56,41 +117,57 @@ npx opencode-beads-install --global
    bd init
    ```
 
+### bd CLI Path Discovery
+
+The plugin automatically searches for the `bd` executable in common locations:
+
+- `~/go/bin/bd` (Go installation)
+- `/usr/local/bin/bd` (Homebrew on macOS Intel)
+- `/opt/homebrew/bin/bd` (Homebrew on macOS Apple Silicon)
+- `/usr/bin/bd` (Linux system)
+- `%APPDATA%\npm\bd.exe` (npm global on Windows)
+- `~/.cargo/bin/bd` (Cargo)
+
+If `bd` is not found in PATH or these locations, the plugin will display a warning.
+
+**Troubleshooting**: If the plugin can't find `bd`, check the log file at `~/.opencode-beads/log.txt` for diagnostic information.
+
 ## Features
 
 ### Session Hooks
 
 The plugin registers OpenCode hooks programmatically (unlike Claude Code which uses `~/.claude/settings.json`):
 
-| Hook | Trigger | Action |
-|------|---------|--------|
-| `experimental.chat.system.transform` | First message in session | Injects `bd prime` output into system prompt |
-| `experimental.session.compacting` | Before context compaction | Adds beads state to compaction context |
+| Hook                                 | Trigger                   | Action                                       |
+| ------------------------------------ | ------------------------- | -------------------------------------------- |
+| `experimental.chat.system.transform` | First message in session  | Injects `bd prime` output into system prompt |
+| `experimental.session.compacting`    | Before context compaction | Adds beads state to compaction context       |
 
 **What this means:**
+
 - **On session start**: Injects `bd prime` workflow context into the system prompt
 - **During compaction**: Preserves beads state (in-progress work, ready work) across compaction
 - **After compaction**: Re-injects context automatically on next message
 
 ### Custom Tools
 
-| Tool | Description |
-|------|-------------|
-| `bd-ready` | Find issues ready to work on (no blockers) |
-| `bd-show` | View detailed issue information |
-| `bd-create` | Create new issues |
-| `bd-update` | Update issue status, priority, notes |
-| `bd-close` | Close completed issues |
-| `bd-sync` | Sync with git (CRITICAL before ending session) |
-| `bd-dep` | Manage dependencies between issues |
+| Tool        | Description                                    |
+| ----------- | ---------------------------------------------- |
+| `bd-ready`  | Find issues ready to work on (no blockers)     |
+| `bd-show`   | View detailed issue information                |
+| `bd-create` | Create new issues                              |
+| `bd-update` | Update issue status, priority, notes           |
+| `bd-close`  | Close completed issues                         |
+| `bd-sync`   | Sync with git (CRITICAL before ending session) |
+| `bd-dep`    | Manage dependencies between issues             |
 
 ### Custom Commands
 
-| Command | Description |
-|---------|-------------|
-| `/bd-ready` | Quick "what's next?" |
-| `/bd-status` | Project stats and health |
-| `/bd-sync` | Sync and check git status |
+| Command      | Description               |
+| ------------ | ------------------------- |
+| `/bd-ready`  | Quick "what's next?"      |
+| `/bd-status` | Project stats and health  |
+| `/bd-sync`   | Sync and check git status |
 
 ### Beads Skill
 
@@ -129,17 +206,17 @@ Configure in your `opencode.json`:
 
 ### Configuration Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `autoSyncOnIdle` | `true` | Run `bd sync --flush-only` on session idle |
-| `contextInjection.onSessionStart` | `true` | Inject bd prime context on session start |
-| `contextInjection.onCompaction` | `true` | Re-inject context after compaction |
-| `contextInjection.includeReadyWork` | `true` | Include ready work in compaction context |
-| `contextInjection.includeInProgress` | `true` | Include in-progress work in compaction context |
-| `contextInjection.readyWorkLimit` | `5` | Max ready issues to include (1-20) |
-| `warnings.showNotInstalled` | `true` | Show warning if bd CLI not installed |
-| `warnings.showNotInitialized` | `true` | Show info if project not initialized |
-| `warnings.showHooksOutdated` | `true` | Show warning if git hooks outdated |
+| Option                               | Default | Description                                    |
+| ------------------------------------ | ------- | ---------------------------------------------- |
+| `autoSyncOnIdle`                     | `true`  | Run `bd sync --flush-only` on session idle     |
+| `contextInjection.onSessionStart`    | `true`  | Inject bd prime context on session start       |
+| `contextInjection.onCompaction`      | `true`  | Re-inject context after compaction             |
+| `contextInjection.includeReadyWork`  | `true`  | Include ready work in compaction context       |
+| `contextInjection.includeInProgress` | `true`  | Include in-progress work in compaction context |
+| `contextInjection.readyWorkLimit`    | `5`     | Max ready issues to include (1-20)             |
+| `warnings.showNotInstalled`          | `true`  | Show warning if bd CLI not installed           |
+| `warnings.showNotInitialized`        | `true`  | Show info if project not initialized           |
+| `warnings.showHooksOutdated`         | `true`  | Show warning if git hooks outdated             |
 
 ## Usage
 
@@ -153,12 +230,12 @@ Configure in your `opencode.json`:
 
 ### When to Use Beads vs TodoWrite
 
-| Use Beads (bd) | Use TodoWrite |
-|----------------|---------------|
-| Multi-session work | Single-session tasks |
-| Complex dependencies | Linear execution |
-| Needs to survive compaction | Conversation-scoped |
-| Team collaboration | Personal checklist |
+| Use Beads (bd)              | Use TodoWrite        |
+| --------------------------- | -------------------- |
+| Multi-session work          | Single-session tasks |
+| Complex dependencies        | Linear execution     |
+| Needs to survive compaction | Conversation-scoped  |
+| Team collaboration          | Personal checklist   |
 
 **Rule of thumb**: "Will I need this context in 2 weeks?" → YES = bd
 
@@ -205,15 +282,15 @@ npm test
 
 ### Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run build` | Compile TypeScript to JavaScript |
-| `npm test` | Run tests once |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run typecheck` | Type-check without emitting |
-| `npm run lint` | Run ESLint |
-| `npm run lint:fix` | Run ESLint with auto-fix |
-| `npm run format` | Format code with Prettier |
+| Script                  | Description                        |
+| ----------------------- | ---------------------------------- |
+| `npm run build`         | Compile TypeScript to JavaScript   |
+| `npm test`              | Run tests once                     |
+| `npm run test:watch`    | Run tests in watch mode            |
+| `npm run typecheck`     | Type-check without emitting        |
+| `npm run lint`          | Run ESLint                         |
+| `npm run lint:fix`      | Run ESLint with auto-fix           |
+| `npm run format`        | Format code with Prettier          |
 | `npm run local:install` | Install plugin locally for testing |
 
 ### Project Structure
@@ -262,6 +339,7 @@ npm link opencode-beads
 ```
 
 Then add to your project's `opencode.json`:
+
 ```json
 {
   "plugin": ["opencode-beads"]
@@ -271,6 +349,7 @@ Then add to your project's `opencode.json`:
 #### Method 3: Direct Path Reference
 
 In your test project's `opencode.json`:
+
 ```json
 {
   "plugin": ["../path/to/opencode-beads"]
@@ -305,7 +384,7 @@ function createMock$(responses: Record<string, { exitCode: number; stdout?: stri
 
 it('should handle bd commands', async () => {
   const $ = createMock$({
-    'bd ready': { exitCode: 0, stdout: '[{"id": "1"}]' }
+    'bd ready': { exitCode: 0, stdout: '[{"id": "1"}]' },
   })
   // Test your function with mocked shell
 })
@@ -368,12 +447,57 @@ git push origin v1.0.0
 ```
 
 Or use the GitHub UI:
+
 1. Go to Releases → "Draft a new release"
 2. Create a new tag (e.g., `v1.0.0`)
 3. Generate release notes
 4. Publish release
 
 The npm package will be published automatically.
+
+## Troubleshooting
+
+### bd CLI not found
+
+If the plugin reports that `bd` is not installed:
+
+1. **Check if bd is installed**: Run `bd --version` in your terminal
+2. **Check the log file**: Look at `~/.opencode-beads/log.txt` for diagnostic information
+3. **Verify installation location**: The plugin searches these locations:
+   - `~/go/bin/bd` (Go installation)
+   - `/usr/local/bin/bd`, `/opt/homebrew/bin/bd` (Homebrew)
+   - `/usr/bin/bd` (Linux system)
+   - `%APPDATA%\npm\bd.exe` (npm global on Windows)
+
+If `bd` is installed in a non-standard location, consider adding a symlink:
+
+```bash
+# Example: Create symlink in a standard location
+ln -s /path/to/your/bd ~/go/bin/bd
+```
+
+### Plugin not loading
+
+1. **Check OpenCode logs**: Look for plugin loading errors
+2. **Verify configuration**: Ensure `opencode.json` has the correct plugin entry
+3. **Rebuild the plugin**: If using local installation, run `npm run build` and reinstall
+
+### Tools not working
+
+If the bd-\* tools return errors:
+
+1. **Check if beads is initialized**: Run `bd init` in your project
+2. **Verify .beads directory exists**: The plugin requires `.beads/` in your project root
+3. **Check the log file**: `~/.opencode-beads/log.txt` contains detailed error information
+
+### Log file location
+
+The plugin writes diagnostic logs to `~/.opencode-beads/log.txt`. This file contains:
+
+- Plugin initialization status
+- bd CLI detection results
+- Hook execution logs
+- Error messages
 
 ## License
 

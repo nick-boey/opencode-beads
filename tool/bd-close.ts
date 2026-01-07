@@ -1,4 +1,5 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
@@ -21,6 +22,7 @@ export default tool({
       .describe('Auto-advance to next step (for molecule workflows)'),
   },
   async execute(args) {
+    const bd = findBdPath()
     const cmdArgs: string[] = [...args.ids]
 
     if (args.reason) cmdArgs.push(`--reason="${args.reason}"`)
@@ -28,12 +30,12 @@ export default tool({
     if (args.continue) cmdArgs.push('--continue')
     cmdArgs.push('--json')
 
-    const result = await Bun.$`bd close ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} close ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || 'Failed to close issue(s)'}`
+      return `Error: ${outputToString(result.stderr) || 'Failed to close issue(s)'}`
     }
 
-    return result.stdout || `Closed: ${args.ids.join(', ')}`
+    return outputToString(result.stdout) || `Closed: ${args.ids.join(', ')}`
   },
 })

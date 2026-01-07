@@ -28,22 +28,38 @@ function createMockResult(exitCode: number, stdout: string, stderr: string) {
 /**
  * Mock shell executor factory that simulates the BunShell API
  * The chain is: $`cmd`.quiet().nothrow() -> Promise<BunShellOutput>
+ *
+ * Patterns are matched against the full command string. Since findBdPath()
+ * may return a full path (e.g., /Users/user/go/bin/bd), patterns should
+ * match the subcommand part (e.g., 'prime', 'ready', '--version').
  */
-function createMock$(responses: Record<string, { exitCode: number; stdout?: string; stderr?: string }>): BunShell {
-  return ((strings: TemplateStringsArray) => {
-    const cmd = strings[0]
-    
-    // Find matching response
+function createMock$(
+  responses: Record<string, { exitCode: number; stdout?: string; stderr?: string }>
+): BunShell {
+  return ((strings: TemplateStringsArray, ...values: unknown[]) => {
+    // Reconstruct the full command by interleaving strings and values
+    let cmd = strings[0]
+    for (let i = 0; i < values.length; i++) {
+      cmd += String(values[i]) + strings[i + 1]
+    }
+
+    // Find matching response - match against the command subparts
+    // This handles both 'bd prime' and '/path/to/bd prime'
     let response = { exitCode: 1, stdout: '', stderr: 'command not found' }
     for (const [pattern, resp] of Object.entries(responses)) {
-      if (cmd.includes(pattern)) {
+      // Extract the subcommand part (e.g., 'prime' from 'bd prime' or '--version' from 'bd --version')
+      const patternParts = pattern.split(' ')
+      const subcommand = patternParts.length > 1 ? patternParts.slice(1).join(' ') : patternParts[0]
+
+      // Check if the command contains the subcommand
+      if (cmd.includes(subcommand) || cmd.includes(pattern)) {
         response = { exitCode: resp.exitCode, stdout: resp.stdout || '', stderr: resp.stderr || '' }
         break
       }
     }
 
     const mockResult = createMockResult(response.exitCode, response.stdout, response.stderr)
-    
+
     // Create a chainable promise-like object
     const createChainable = () => {
       const promise = Promise.resolve(mockResult)
@@ -54,7 +70,7 @@ function createMock$(responses: Record<string, { exitCode: number; stdout?: stri
         json: () => Promise.resolve(JSON.parse(response.stdout || '{}')),
       })
     }
-    
+
     return createChainable()
   }) as unknown as BunShell
 }

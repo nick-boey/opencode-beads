@@ -11,10 +11,19 @@
  *   npm run local:install -- --global
  */
 
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  copyFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+  rmSync,
+} from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
+import { execSync } from 'child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -24,6 +33,7 @@ const args = process.argv.slice(2)
 const isGlobal = args.includes('--global') || args.includes('-g')
 const isDryRun = args.includes('--dry-run') || args.includes('-n')
 const isHelp = args.includes('--help') || args.includes('-h')
+const skipBuild = args.includes('--skip-build')
 
 if (isHelp) {
   console.log(`
@@ -35,9 +45,14 @@ Usage:
 Options:
   --global, -g    Install to global config (~/.config/opencode/)
   --dry-run, -n   Show what would be installed without making changes
+  --skip-build    Skip the build step (use existing dist/)
   --help, -h      Show this help message
 
 By default, installs to the current directory's .opencode/ folder.
+The installer will:
+  1. Build the plugin (npm run build)
+  2. Uninstall any existing plugin
+  3. Install the new plugin
 `)
   process.exit(0)
 }
@@ -56,11 +71,90 @@ if (isDryRun) console.log(`(Dry run - no changes will be made)`)
 console.log('')
 
 /**
+ * Step 1: Build the plugin
+ */
+if (!skipBuild) {
+  console.log('Step 1: Building plugin...')
+  console.log('')
+  if (!isDryRun) {
+    try {
+      execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' })
+      console.log('')
+      console.log('Build completed successfully.')
+    } catch (error) {
+      console.error('Build failed!')
+      process.exit(1)
+    }
+  } else {
+    console.log('  (Would run: npm run build)')
+  }
+  console.log('')
+} else {
+  console.log('Step 1: Skipping build (--skip-build)')
+  console.log('')
+}
+
+/**
+ * Step 2: Uninstall existing plugin
+ */
+console.log('Step 2: Removing existing plugin (if any)...')
+console.log('')
+
+// Files and directories to remove (same as uninstall.js)
+const uninstallTargets = [
+  join(targetBase, 'plugin', 'beads.js'),
+  join(targetBase, 'plugin', 'opencode-beads'),
+  join(targetBase, 'skill', 'beads'),
+]
+
+// Tool files
+const toolFiles = [
+  'bd-close.ts',
+  'bd-create.ts',
+  'bd-dep.ts',
+  'bd-ready.ts',
+  'bd-show.ts',
+  'bd-sync.ts',
+  'bd-update.ts',
+  'bd-path.ts',
+]
+for (const toolFile of toolFiles) {
+  uninstallTargets.push(join(targetBase, 'tool', toolFile))
+}
+
+// Command files
+const commandFiles = ['bd-ready.md', 'bd-status.md', 'bd-sync.md']
+for (const cmdFile of commandFiles) {
+  uninstallTargets.push(join(targetBase, 'command', cmdFile))
+}
+
+let removedCount = 0
+for (const target of uninstallTargets) {
+  if (existsSync(target)) {
+    console.log(`  Removing: ${target}`)
+    if (!isDryRun) {
+      rmSync(target, { recursive: true, force: true })
+    }
+    removedCount++
+  }
+}
+
+if (removedCount === 0) {
+  console.log('  No existing plugin found.')
+} else {
+  console.log(`  ${isDryRun ? 'Would remove' : 'Removed'} ${removedCount} items.`)
+}
+console.log('')
+
+console.log('Step 3: Installing plugin...')
+console.log('')
+
+/**
  * Recursively copy a directory
  */
 function copyDirRecursive(src, dest) {
   let count = 0
-  
+
   if (!isDryRun) {
     mkdirSync(dest, { recursive: true })
   }
@@ -80,7 +174,7 @@ function copyDirRecursive(src, dest) {
       count++
     }
   }
-  
+
   return count
 }
 
@@ -92,12 +186,12 @@ function copyFile(src, dest) {
     console.warn(`  Warning: ${src} not found, skipping`)
     return false
   }
-  
+
   if (!isDryRun) {
     mkdirSync(dirname(dest), { recursive: true })
     copyFileSync(src, dest)
   }
-  
+
   return true
 }
 
@@ -107,12 +201,12 @@ function copyFile(src, dest) {
 function writeFile(dest, content, description) {
   console.log(`  ${description}`)
   console.log(`    To: ${dest}`)
-  
+
   if (!isDryRun) {
     mkdirSync(dirname(dest), { recursive: true })
     writeFileSync(dest, content)
   }
-  
+
   console.log(`    ${isDryRun ? 'Would create' : 'Created'} 1 file`)
   console.log('')
   return 1
@@ -154,7 +248,6 @@ const targets = [
 ]
 
 console.log('Installing components:')
-console.log('')
 
 let totalFiles = 0
 let errors = 0
@@ -188,7 +281,7 @@ for (const target of targets) {
     console.error(`    Error: ${error}`)
     errors++
   }
-  
+
   console.log('')
 }
 
@@ -208,15 +301,20 @@ totalFiles += writeFile(
 )
 
 // Create .opencode/package.json for external dependencies
-const packageJsonContent = JSON.stringify({
-  "name": "opencode-local-plugins",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@opencode-ai/plugin": "^1.1.3",
-    "zod": "^3.24.2"
-  }
-}, null, 2) + '\n'
+const packageJsonContent =
+  JSON.stringify(
+    {
+      name: 'opencode-local-plugins',
+      private: true,
+      type: 'module',
+      dependencies: {
+        '@opencode-ai/plugin': '^1.1.3',
+        zod: '^3.24.2',
+      },
+    },
+    null,
+    2
+  ) + '\n'
 
 totalFiles += writeFile(
   join(targetBase, 'package.json'),

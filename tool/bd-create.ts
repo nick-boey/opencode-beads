@@ -1,4 +1,5 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
@@ -16,7 +17,10 @@ export default tool({
       .default(2)
       .describe('Priority: 0=critical, 1=high, 2=medium, 3=low, 4=backlog'),
     description: tool.schema.string().optional().describe('Detailed description of the issue'),
-    parent: tool.schema.string().optional().describe('Parent issue ID (creates subtask relationship)'),
+    parent: tool.schema
+      .string()
+      .optional()
+      .describe('Parent issue ID (creates subtask relationship)'),
     due: tool.schema
       .string()
       .optional()
@@ -28,6 +32,7 @@ export default tool({
     assignee: tool.schema.string().optional().describe('Username to assign the issue to'),
   },
   async execute(args) {
+    const bd = findBdPath()
     const cmdArgs: string[] = [
       `--title="${args.title}"`,
       `--type=${args.type}`,
@@ -41,12 +46,12 @@ export default tool({
     if (args.assignee) cmdArgs.push(`--assignee=${args.assignee}`)
     cmdArgs.push('--json')
 
-    const result = await Bun.$`bd create ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} create ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || 'Failed to create issue'}`
+      return `Error: ${outputToString(result.stderr) || 'Failed to create issue'}`
     }
 
-    return result.stdout
+    return outputToString(result.stdout)
   },
 })
