@@ -208,15 +208,31 @@ export const BeadsPlugin: Plugin = async (input: PluginInput): Promise<Hooks> =>
      * Runs on every chat turn, so we track if we've already injected
      */
     'experimental.chat.system.transform': async (_input, output): Promise<void> => {
+      log(client, 'debug', 'experimental.chat.system.transform hook called', {
+        primeContextInjected: pluginState.primeContextInjected,
+        onSessionStart: config.contextInjection.onSessionStart,
+        systemArrayLength: output.system.length,
+        systemArrayContent: output.system,
+      })
+
       // Only inject once per session (on first message)
       if (pluginState.primeContextInjected) return
       if (!config.contextInjection.onSessionStart) return
 
       const primeContext = await getBdPrimeContext($)
       if (primeContext) {
-        output.system.push(primeContext)
+        const lengthBefore = output.system.length
+        // Add the beads context with a clear marker
+        output.system.push(
+          `\n\n<!-- BEADS PLUGIN CONTEXT START -->\n${primeContext}\n<!-- BEADS PLUGIN CONTEXT END -->`
+        )
         pluginState.primeContextInjected = true
-        log(client, 'debug', 'Injected bd prime context into system prompt')
+        log(client, 'debug', 'Injected bd prime context into system prompt', {
+          lengthBefore,
+          lengthAfter: output.system.length,
+          contentLength: primeContext.length,
+          content: primeContext,
+        })
       }
     },
 
