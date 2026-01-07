@@ -1,4 +1,5 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
@@ -34,6 +35,7 @@ export default tool({
     title: tool.schema.string().optional().describe('Update the issue title'),
   },
   async execute(args) {
+    const bd = findBdPath()
     const cmdArgs: string[] = [args.id]
 
     if (args.status) cmdArgs.push(`--status=${args.status}`)
@@ -46,12 +48,12 @@ export default tool({
     if (args.title) cmdArgs.push(`--title="${args.title}"`)
     cmdArgs.push('--json')
 
-    const result = await Bun.$`bd update ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} update ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || `Failed to update ${args.id}`}`
+      return `Error: ${outputToString(result.stderr) || `Failed to update ${args.id}`}`
     }
 
-    return result.stdout || `Updated ${args.id}`
+    return outputToString(result.stdout) || `Updated ${args.id}`
   },
 })

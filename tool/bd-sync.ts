@@ -1,4 +1,5 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
@@ -16,12 +17,10 @@ export default tool({
       .boolean()
       .optional()
       .describe('Only import from JSONL, skip git operations'),
-    status: tool.schema
-      .boolean()
-      .optional()
-      .describe('Check sync status without making changes'),
+    status: tool.schema.boolean().optional().describe('Check sync status without making changes'),
   },
   async execute(args) {
+    const bd = findBdPath()
     const cmdArgs: string[] = []
 
     if (args.flushOnly) cmdArgs.push('--flush-only')
@@ -29,12 +28,12 @@ export default tool({
     if (args.importOnly) cmdArgs.push('--import-only')
     if (args.status) cmdArgs.push('--status')
 
-    const result = await Bun.$`bd sync ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} sync ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || 'Sync failed'}`
+      return `Error: ${outputToString(result.stderr) || 'Sync failed'}`
     }
 
-    return result.stdout || 'Sync completed successfully'
+    return outputToString(result.stdout) || 'Sync completed successfully'
   },
 })

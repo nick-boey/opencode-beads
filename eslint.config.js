@@ -13,13 +13,20 @@ export default tseslint.config(
     files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
-        project: './tsconfig.json'
+        project: './tsconfig.eslint.json'
       }
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn'
+    }
+  },
+  {
+    // Allow require() for reading package.json in version.ts
+    files: ['src/version.ts'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off'
     }
   }
 )

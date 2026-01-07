@@ -1,13 +1,11 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
     'Find beads issues ready to work on (no blockers). Returns unblocked issues sorted by priority. Use this to find your next task.',
   args: {
-    limit: tool.schema
-      .number()
-      .optional()
-      .describe('Maximum issues to return (default: 10)'),
+    limit: tool.schema.number().optional().describe('Maximum issues to return (default: 10)'),
     priority: tool.schema
       .number()
       .min(0)
@@ -25,6 +23,7 @@ export default tool({
       .describe('Include issues deferred to the future'),
   },
   async execute(args) {
+    const bd = findBdPath()
     const cmdArgs: string[] = []
 
     if (args.limit) cmdArgs.push(`--limit=${args.limit}`)
@@ -34,12 +33,12 @@ export default tool({
     if (args.includeDeferred) cmdArgs.push('--include-deferred')
     cmdArgs.push('--json')
 
-    const result = await Bun.$`bd ready ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} ready ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || 'Failed to get ready work. Is bd installed and project initialized?'}`
+      return `Error: ${outputToString(result.stderr) || 'Failed to get ready work. Is bd installed and project initialized?'}`
     }
 
-    return result.stdout || 'No issues ready to work on.'
+    return outputToString(result.stdout) || 'No issues ready to work on.'
   },
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // Note: Full plugin integration tests would require mocking the OpenCode plugin system.
 // These tests focus on the plugin's initialization logic.

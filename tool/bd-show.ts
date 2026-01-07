@@ -1,4 +1,5 @@
 import { tool } from '@opencode-ai/plugin'
+import { findBdPath, outputToString } from './bd-path.js'
 
 export default tool({
   description:
@@ -12,18 +13,19 @@ export default tool({
     refs: tool.schema.boolean().optional().describe('Show issues that reference this one'),
   },
   async execute(args) {
+    const bd = findBdPath()
     const cmdArgs: string[] = [args.id]
 
     if (args.thread) cmdArgs.push('--thread')
     if (args.refs) cmdArgs.push('--refs')
     cmdArgs.push('--json')
 
-    const result = await Bun.$`bd show ${cmdArgs.join(' ')}`.nothrow()
+    const result = await Bun.$`${bd} show ${cmdArgs.join(' ')}`.nothrow()
 
     if (result.exitCode !== 0) {
-      return `Error: ${result.stderr || `Issue ${args.id} not found`}`
+      return `Error: ${outputToString(result.stderr) || `Issue ${args.id} not found`}`
     }
 
-    return result.stdout
+    return outputToString(result.stdout)
   },
 })

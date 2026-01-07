@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/nboey/opencode-beads"
+    "url": "https://github.com/nick-boey/opencode-beads"
   },
   "keywords": [
     "opencode",
@@ -46,7 +46,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
-    "local:install": "node --loader ts-node/esm local/install.ts"
+    "local:install": "node local/install.js",
+    "local:uninstall": "node local/uninstall.js"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.1.3",
@@ -68,5 +69,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "bin": {
+    "opencode-beads-install": "local/install.js",
+    "opencode-beads-uninstall": "local/uninstall.js"
   }
 }
